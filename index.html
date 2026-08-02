@@ -444,14 +444,24 @@
       </div>
       <div id="paymentBalanceNote" style="margin-top:10px;font-size:12px;color:#888;text-align:center;"></div>
     </div>
-    <div class="card" id="paymentsCard" style="display:none;">
-      <h2>Yapılan Ödemeler</h2>
-      <div id="paymentsListView"></div>
-    </div>
+
     <div class="card">
       <h2>El Geçmişi</h2>
       <div id="allHistoryWrap"></div>
     </div>
+  </div>
+
+
+  <!-- SCREEN 8: İSTATİSTİKLER -->
+  <div class="screen" id="s8">
+    <div class="top-actions">
+      <span style="color:#fff;font-weight:800;">İstatistikler</span>
+    </div>
+    <div class="card">
+      <h2>Oturum</h2>
+      <select id="statsSessionSelect"></select>
+    </div>
+    <div id="statsWrap"></div>
   </div>
 
   <!-- SCREEN 7: CLOSE SESSION (PAYMENTS) -->
@@ -465,25 +475,7 @@
       <div class="small-note">Bu oturumdaki el sonuçlarına göre kim kime ne kadar borçlu.</div>
       <div id="closeSessionTotals" style="margin-top:8px;"></div>
     </div>
-    <div class="card">
-      <h2>Yapılan Ödemeyi Girin</h2>
-      <div class="small-note">Gerçekte kim kime ne kadar ödedi? Birden fazla ödeme ekleyebilirsiniz.</div>
-      <label>Ödeyen</label>
-      <select id="paymentFromSelect"></select>
-      <label>Alan</label>
-      <select id="paymentToSelect"></select>
-      <label>Tutar (₺)</label>
-      <div class="row">
-        <input type="number" id="paymentAmountInput" placeholder="Örn: 50">
-        <button class="btn-soft" id="addPaymentBtn" style="flex:0 0 70px;">Ekle</button>
-      </div>
-      <div id="paymentListWrap" style="margin-top:10px;"></div>
-    </div>
-    <div class="card">
-      <h2>Kalan Bakiye (Ödemeler Sonrası)</h2>
-      <div id="remainingBalancePreview"></div>
-      <button class="btn-soft btn-block" id="shareWhatsappCloseBtn" style="margin-top:10px;">📲 Görsel Olarak Paylaş</button>
-    </div>
+
     <button class="btn-main" id="confirmCloseSessionBtn">Oturumu Kapat</button>
   </div>
 
@@ -531,6 +523,7 @@
   <button data-go="s1" id="tabPlayers">OYUNCULAR</button>
   <button data-go="s2" id="tabTables">MASALAR</button>
   <button data-go="s6" id="tabTotals">TOPLAMLAR</button>
+  <button data-go="s8" id="tabStats">İSTATİSTİK</button>
 </div>
 
 <!-- Firebase -->
@@ -575,6 +568,7 @@ let lastTotalsShareData = null;
 let pendingPayments = { payers: [], receivers: [] };
 
 /* ===================== FIREBASE SYNC ===================== */
+let _firstLoad = true;
 ROOT.on("value", snap => {
   const val = snap.val() || {};
   STATE.players = val.players || {};
@@ -585,6 +579,11 @@ ROOT.on("value", snap => {
   STATE.activeSessionId = val.activeSessionId || null;
   const activeSession = STATE.activeSessionId ? STATE.sessions[STATE.activeSessionId] : null;
   STATE.tables = activeSession ? (activeSession.tables || {}) : {};
+  if (_firstLoad){
+    _firstLoad = false;
+    const _live = Object.entries(STATE.tables||{}).find(([,t])=>t.game&&!t.game.finished);
+    if (_live){ goScreen("s4", _live[0]); return; }
+  }
   renderAll();
 });
 
@@ -671,15 +670,35 @@ function buildInitialGame(seated, partners){
 
 /* ===================== NAV ===================== */
 document.querySelectorAll("[data-go]").forEach(el=>{
-  el.addEventListener("click", ()=> goScreen(el.getAttribute("data-go")));
+  el.addEventListener("click", ()=> {
+    const target = el.getAttribute("data-go");
+    // back-link butonları force=true ile gider (canlı el yönlendirmesini atlar)
+    const force = el.classList.contains("back-link");
+    goScreen(target, undefined, force);
+  });
 });
-function goScreen(id, tableId){
+function goScreen(id, tableId, force){
+  // Masalar sekmesine gidilince canlı el varsa direkt ona dön (force=true ise atla)
+  if (id === "s2" && tableId === undefined && !force){
+    const tables = STATE.tables || {};
+    const liveTable = Object.entries(tables).find(([tid, t])=> t.game && !t.game.finished);
+    if (liveTable){
+      currentScreen = "s4";
+      currentTableId = liveTable[0];
+      document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+      document.getElementById("s4").classList.add("active");
+      document.querySelectorAll(".tabbar button").forEach(b=>b.classList.remove("on"));
+      document.getElementById("tabTables").classList.add("on");
+      renderAll();
+      return;
+    }
+  }
   currentScreen = id;
   if (tableId !== undefined) currentTableId = tableId;
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
   document.querySelectorAll(".tabbar button").forEach(b=>b.classList.remove("on"));
-  const tabMap = {s1:"tabPlayers", s2:"tabTables", s6:"tabTotals"};
+  const tabMap = {s1:"tabPlayers", s2:"tabTables", s6:"tabTotals", s8:"tabStats"};
   if (tabMap[id]) document.getElementById(tabMap[id]).classList.add("on");
   renderAll();
 }
@@ -692,6 +711,7 @@ function renderAll(){
   if (currentScreen === "s4") renderGameScreen();
   if (currentScreen === "s5") renderVidoCallersAndSeers();
   if (currentScreen === "s6") renderTotalsScreen();
+  if (currentScreen === "s8") goToStats();
   if (currentScreen === "s7") renderCloseSessionScreen();
 }
 
@@ -1292,70 +1312,20 @@ async function shareBalanceCard(title, totals, payments){
   }
 }
 
+function renderCloseSessionScreen(){
+  const s = STATE.sessions[STATE.activeSessionId];
+  if (!s){ goScreen("s2"); return; }
+  const totals = computeSessionHandTotals(s);
+  renderBalanceList(document.getElementById("closeSessionTotals"), totals);
+}
+
 document.getElementById("closeSessionBtn2").addEventListener("click", ()=>{
   if (!STATE.activeSessionId) return;
   pendingPayments = { payers: [], receivers: [] };
   goScreen("s7");
 });
+;
 
-document.getElementById("shareWhatsappCloseBtn").addEventListener("click", ()=>{
-  const s = STATE.sessions[STATE.activeSessionId];
-  if (!s) return;
-  const totals = computeSessionHandTotals(s);
-  applyPaymentsToTotals(totals, pendingPayments);
-  shareBalanceCard(s.name, totals, pendingPayments);
-});
-
-function renderCloseSessionScreen(){
-  const s = STATE.sessions[STATE.activeSessionId];
-  if (!s){ goScreen("s2"); return; }
-  const names = Object.keys(s.activePlayers||{});
-
-  const totals = computeSessionHandTotals(s);
-  renderBalanceList(document.getElementById("closeSessionTotals"), totals);
-
-  const fromSel = document.getElementById("paymentFromSelect");
-  const toSel = document.getElementById("paymentToSelect");
-  const optHtml = names.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("");
-  if (fromSel.innerHTML !== optHtml) fromSel.innerHTML = optHtml;
-  if (toSel.innerHTML !== optHtml) toSel.innerHTML = optHtml;
-
-  const legacyList = (pendingPayments && pendingPayments._legacy) || [];
-  const listWrap = document.getElementById("paymentListWrap");
-  listWrap.innerHTML = legacyList.length ? legacyList.map((p,i)=>`
-    <div class="result-line">
-      <span>${escapeHtml(p.from)} → ${escapeHtml(p.to)}</span>
-      <span class="amt pos" style="display:flex;align-items:center;gap:8px;">
-        ${p.amount.toFixed(2)} ₺
-        <button class="btn-danger btn-sm" data-idx="${i}">Sil</button>
-      </span>
-    </div>
-  `).join("") : `<div class="small-note">Henüz ödeme eklenmedi.</div>`;
-  listWrap.querySelectorAll("button[data-idx]").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      legacyList.splice(parseInt(btn.getAttribute("data-idx")), 1);
-      renderCloseSessionScreen();
-    });
-  });
-
-  const remaining = applyPaymentsToTotals(Object.assign({}, totals), legacyList);
-  renderBalanceList(document.getElementById("remainingBalancePreview"), remaining);
-}
-
-document.getElementById("addPaymentBtn").addEventListener("click", ()=>{
-  const from = document.getElementById("paymentFromSelect").value;
-  const to = document.getElementById("paymentToSelect").value;
-  const amount = parseFloat(document.getElementById("paymentAmountInput").value);
-  if (!from || !to || from === to){ alert("Ödeyen ve alan farklı kişiler olmalı."); return; }
-  if (!amount || amount <= 0){ alert("Geçerli bir tutar girin."); return; }
-  // Eski format: {from, to, amount} — s7 ekranı hâlâ kullanıyor
-  if (!Array.isArray(pendingPayments)) pendingPayments = { payers: [], receivers: [] };
-  // s7'de geçici olarak eski listeye ekle (oturum kapatırken array olarak kaydedilecek)
-  if (!pendingPayments._legacy) pendingPayments._legacy = [];
-  pendingPayments._legacy.push({ from, to, amount });
-  document.getElementById("paymentAmountInput").value = "";
-  renderCloseSessionScreen();
-});
 
 document.getElementById("confirmCloseSessionBtn").addEventListener("click", ()=>{
   const sid = STATE.activeSessionId;
@@ -2232,6 +2202,7 @@ function finishHand(tableId, winnerSide, g, isMars){
     winnerSeated: winnerSide === "A" ? t.seated.A : t.seated.B,
     sideA: Object.keys({[t.seated.A]:true, ...((t.partners&&t.partners.A)||{})}),
     sideB: Object.keys({[t.seated.B]:true, ...((t.partners&&t.partners.B)||{})}),
+    kingA: t.seated.A, kingB: t.seated.B,
     results, vidoLog: g.vidoLog||[], time: Date.now()
   });
 
@@ -2438,8 +2409,6 @@ function renderTotalsScreen(){
   });
 
   const scopeNote = document.getElementById("totalsScopeNote");
-  const paymentsCard = document.getElementById("paymentsCard");
-  const paymentsListView = document.getElementById("paymentsListView");
 
   if (totalsSelectedSession === "ALL"){
     Object.entries(STATE.startingBalances||{}).forEach(([name,amt])=>{
@@ -2453,23 +2422,16 @@ function renderTotalsScreen(){
       }
     });
     scopeNote.textContent = "Başlangıç bakiyeleri ve kapanmış oturumların ödemeleri dahil edilmiştir.";
-    paymentsCard.style.display = "none";
   } else {
     const s = STATE.sessions[totalsSelectedSession];
     if (s && s.closed){
       scopeNote.textContent = `Bu oturum kapatılmış (${new Date(s.closedAt||0).toLocaleDateString("tr-TR")}). Aşağıdaki tutar, yapılan ödemeler sonrası kalan bakiyedir.`;
       applyPaymentsToTotals(totals, s.payments);
       if (s.payments && s.payments.length){
-        paymentsCard.style.display = "block";
-        paymentsListView.innerHTML = s.payments.map(p=>
-          `<div class="result-line"><span>${escapeHtml(p.from)} → ${escapeHtml(p.to)}</span><span class="amt pos">${p.amount.toFixed(2)} ₺</span></div>`
-        ).join("");
-      } else {
-        paymentsCard.style.display = "none";
+} else {
       }
     } else {
       scopeNote.textContent = "Bu oturumun el sonuçlarına göre hesaplanan toplam (başlangıç bakiyesi dahil değildir).";
-      paymentsCard.style.display = "none";
     }
   }
 
@@ -2672,6 +2634,167 @@ document.getElementById("addReceiverBtn").addEventListener("click", ()=>{
   document.getElementById("receiverAmount").value = "";
   renderTotalsScreen();
 });
+
+
+/* ===================== SCREEN 8: İSTATİSTİKLER ===================== */
+let statsSelectedSession = "ALL";
+
+function goToStats(){
+  const sel = document.getElementById("statsSessionSelect");
+  const entries = Object.entries(STATE.sessions||{}).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+  sel.innerHTML = `<option value="ALL">Tüm Oturumlar</option>` +
+    entries.map(([id,s])=>`<option value="${id}">${escapeHtml(s.name||id)}</option>`).join("");
+  if ([...sel.options].some(o=>o.value===statsSelectedSession)) sel.value = statsSelectedSession;
+  else { statsSelectedSession = "ALL"; sel.value = "ALL"; }
+  renderStats();
+}
+
+document.getElementById("statsSessionSelect").addEventListener("change", e=>{
+  statsSelectedSession = e.target.value;
+  renderStats();
+});
+
+function renderStats(){
+  // Tüm history kayıtlarını topla
+  const rows = [];
+  Object.entries(STATE.sessions||{}).forEach(([sid,s])=>{
+    if (statsSelectedSession !== "ALL" && sid !== statsSelectedSession) return;
+    Object.entries(s.tables||{}).forEach(([tid,t])=>{
+      Object.entries(t.history||{}).forEach(([hid,h])=>{
+        rows.push({...h, sessionId:sid, tableId:tid, historyId:hid, tname:t.name||"Masa"});
+      });
+    });
+  });
+
+  if (!rows.length){
+    document.getElementById("statsWrap").innerHTML = `<div class="card"><div class="small-note">Henüz el geçmişi yok.</div></div>`;
+    return;
+  }
+
+  // Oyuncu bazlı istatistikler
+  const players = {};
+  function getP(name){
+    if (!players[name]) players[name] = {
+      totalEls:0, kazandigi:0, kralKazandi:0, kralOynadi:0,
+      yardimciKazandi:0, yardimciOynadi:0,
+      marsYapti:0, marsYedi:0,
+      vidoCekti:0, gormedi:0, gordu:0,
+      autoVidoKazandi:0, autoVidoOynadi:0,
+      seri:0, maxSeri:0, kaybSeri:0, maxKaybSeri:0,
+      enCokKazanilan:0, enCokKaybedilen:0
+    };
+    return players[name];
+  }
+
+  rows.forEach(h=>{
+    const sideA = Array.isArray(h.sideA) ? h.sideA : [];
+    const sideB = Array.isArray(h.sideB) ? h.sideB : [];
+    const resultNames = Object.keys(h.results||{});
+    const effectiveSideA = sideA.length ? sideA : (h.winner==="A" ? resultNames.filter(n=>(h.results[n]?.total||0)>0) : resultNames.filter(n=>(h.results[n]?.total||0)<0));
+    const effectiveSideB = sideB.length ? sideB : (h.winner==="B" ? resultNames.filter(n=>(h.results[n]?.total||0)>0) : resultNames.filter(n=>(h.results[n]?.total||0)<0));
+    const winSide = h.winner === "A" ? effectiveSideA : effectiveSideB;
+    const loseSide = h.winner === "A" ? effectiveSideB : effectiveSideA;
+    const allPlayers = [...new Set([...effectiveSideA, ...effectiveSideB, ...resultNames])];
+    const kingA = h.kingA || effectiveSideA[0] || null;
+    const kingB = h.kingB || effectiveSideB[0] || null;
+
+    allPlayers.forEach(name=>{
+      const p = getP(name);
+      p.totalEls++;
+      const won = winSide.includes(name);
+      if (won) p.kazandigi++;
+
+      // Kral mı yardımcı mı?
+      const isKing = (name === kingA || name === kingB);
+      if (isKing){ p.kralOynadi++; if (won) p.kralKazandi++; }
+      else if (sideA.length > 1 || sideB.length > 1){
+        p.yardimciOynadi++; if (won) p.yardimciKazandi++;
+      }
+
+      // Mars
+      if (h.mars){
+        if (winSide.includes(name)) p.marsYapti++;
+        else p.marsYedi++;
+      }
+
+      // Otomatik vido
+      if (h.autoVido){ p.autoVidoOynadi++; if (won) p.autoVidoKazandi++; }
+
+      // Kazanç/kayıp
+      const res = (h.results||{})[name];
+      const val = res && typeof res === "object" ? (res.total||0) : (res||0);
+      if (val > p.enCokKazanilan) p.enCokKazanilan = val;
+      if (val < p.enCokKaybedilen) p.enCokKaybedilen = val;
+    });
+
+    // Seri hesabı (satır sıralı gelmeyebilir, sonra yapılacak)
+
+    // Vido log
+    (h.vidoLog||[]).forEach(v=>{
+      getP(v.caller).vidoCekti++;
+      if (v.saw) getP(v.opponent).gordu++;
+      else getP(v.opponent).gormedi++;
+    });
+  });
+
+  // Seri hesabı — her oyuncu için kronolojik sırala
+  const sortedRows = [...rows].sort((a,b)=>(a.time||0)-(b.time||0));
+  const seriler = {}; // name -> {seri, maxSeri, kaybSeri, maxKaybSeri}
+  sortedRows.forEach(h=>{
+    const sideA = Array.isArray(h.sideA) ? h.sideA : [];
+    const sideB = Array.isArray(h.sideB) ? h.sideB : [];
+    const rN = Object.keys(h.results||{});
+    const eSA = sideA.length ? sideA : (h.winner==="A" ? rN.filter(n=>(h.results[n]?.total||0)>0) : rN.filter(n=>(h.results[n]?.total||0)<0));
+    const eSB = sideB.length ? sideB : (h.winner==="B" ? rN.filter(n=>(h.results[n]?.total||0)>0) : rN.filter(n=>(h.results[n]?.total||0)<0));
+    const winSide = h.winner === "A" ? eSA : eSB;
+    const allPlayers = [...new Set([...eSA, ...eSB, ...rN])];
+    const kingA = h.kingA || eSA[0] || null;
+    const kingB = h.kingB || eSB[0] || null;
+    allPlayers.forEach(name=>{
+      if (!seriler[name]) seriler[name] = {seri:0, maxSeri:0, kaybSeri:0, maxKaybSeri:0};
+      const s = seriler[name];
+      const won = winSide.includes(name);
+      const isKing = (name === kingA || name === kingB);
+      // Kazanma serisi: sadece kral (oynayan) olarak
+      if (isKing){
+        if (won){ s.seri++; s.kaybSeri=0; if(s.seri>s.maxSeri) s.maxSeri=s.seri; }
+        else { s.kaybSeri++; s.seri=0; if(s.kaybSeri>s.maxKaybSeri) s.maxKaybSeri=s.kaybSeri; }
+      } else {
+        // Ortak: sadece kaybetme serisi sayılır
+        if (!won){ s.kaybSeri++; if(s.kaybSeri>s.maxKaybSeri) s.maxKaybSeri=s.kaybSeri; }
+        else { s.kaybSeri=0; }
+      }
+    });
+  });
+  Object.entries(seriler).forEach(([name,s])=>{
+    if (players[name]){ players[name].maxSeri=s.maxSeri; players[name].maxKaybSeri=s.maxKaybSeri; }
+  });
+
+  // Render
+  const wrap = document.getElementById("statsWrap");
+  const pList = Object.entries(players).sort((a,b)=>b[1].kazandigi-a[1].kazandigi);
+
+  function pct(a,b){ return b>0 ? Math.round(a/b*100)+"%" : "—"; }
+  function row(label, val){ return `<div class="result-line"><span>${label}</span><span class="amt">${val}</span></div>`; }
+
+  wrap.innerHTML = pList.map(([name,p])=>`
+    <div class="card">
+      <h2>${escapeHtml(name)}</h2>
+      ${row("Kazanma oranı", pct(p.kazandigi, p.totalEls) + ` (${p.kazandigi}/${p.totalEls})`)}
+      ${p.kralOynadi > 0 ? row("Oynayan olarak", pct(p.kralKazandi, p.kralOynadi) + ` (${p.kralKazandi}/${p.kralOynadi})`) : ""}
+      ${p.yardimciOynadi > 0 ? row("Dışardan ortak olarak", pct(p.yardimciKazandi, p.yardimciOynadi) + ` (${p.yardimciKazandi}/${p.yardimciOynadi})`) : ""}
+      ${row("Mars yaptı / yedi", `${p.marsYapti} / ${p.marsYedi}`)}
+      ${row("Vido çekti", p.vidoCekti)}
+      ${row("Vido gördü / görmedi", `${p.gordu} / ${p.gormedi}`)}
+      ${p.autoVidoOynadi > 0 ? row("Sanvoir ellerinde", pct(p.autoVidoKazandi, p.autoVidoOynadi) + ` (${p.autoVidoKazandi}/${p.autoVidoOynadi})`) : ""}
+      ${row("En uzun kazanma serisi", p.maxSeri)}
+      ${row("En uzun kaybetme serisi", p.maxKaybSeri)}
+      ${row("En çok kazanılan el", "+" + p.enCokKazanilan.toFixed(0) + " ₺")}
+      ${row("En çok kaybedilen el", p.enCokKaybedilen.toFixed(0) + " ₺")}
+    </div>
+  `).join("");
+}
+
 
 /* ===================== UTIL ===================== */
 /* Türkçe ünlü uyumuna göre isme yaklaşık datif ("-e/-a karşı") eki ekler. */
