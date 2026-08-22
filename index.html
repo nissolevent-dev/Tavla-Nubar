@@ -1950,10 +1950,6 @@ document.getElementById("vidoCalledBtn").addEventListener("click", ()=>{
   if (!t || !t.game) return;
   // Vido öncesi game'i stack'e ekle (geri al için)
   vidoStack.push(JSON.parse(JSON.stringify(t.game)));
-  // Önceki turdan kalan blockedCaller'ları sıfırla (stack'e ekledikten sonra)
-  Object.values(t.game.pairs||{}).forEach(oppMap=>{
-    Object.values(oppMap||{}).forEach(p=>{ if(!p.closed) p.blockedCaller = null; });
-  });
   document.getElementById("undoVidoBtn").style.display = "none";
   selectedVidoCallers = [];
   selectedVidoSeers = {};
@@ -2071,6 +2067,7 @@ document.getElementById("confirmVidoBtn").addEventListener("click", ()=>{
           p.closed = true;
           p.closedLoser = targetName;
           p.closedAtCount = oldCount;
+          p.blockedCaller = caller; // görmese de bu turda kapandı, tekrar çekilemez
         }
         g.vidoLog.push({ caller, opponent: targetName, from: oldCount, saw });
       });
