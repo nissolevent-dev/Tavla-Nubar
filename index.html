@@ -249,7 +249,7 @@
 <body>
 
 <header>
-  <h1>TAVLA <span style="font-size:14px;vertical-align:middle;opacity:0.7;">v2</span></h1>
+  <h1>TAVLA</h1>
   <small>ORTAKLI TAKİP</small>
 </header>
 
@@ -2327,11 +2327,7 @@ document.getElementById("undoFinishedHandBtn").addEventListener("click", ()=>{
   const uvBtnR = document.getElementById("undoVidoBtn");
   if (uvBtnR) uvBtnR.style.display = vidoStack.length ? "inline-block" : "none";
   document.getElementById("undoFinishedHandBtn").style.display = "none";
-  // Vido ekranına dön
-  selectedVidoCallers = [];
-  selectedVidoSeers = {};
-  goScreen("s5");
-  renderVidoCallersAndSeers();
+  goScreen("s4");
 });
 
 document.getElementById("undoAutoFinishBtn").addEventListener("click", ()=>{
@@ -2359,11 +2355,7 @@ document.getElementById("undoAutoFinishBtn").addEventListener("click", ()=>{
   const uvBtnA = document.getElementById("undoVidoBtn");
   if (uvBtnA) uvBtnA.style.display = vidoStack.length ? "inline-block" : "none";
   document.getElementById("undoAutoFinishBtn").style.display = "none";
-  // Vido ekranına dön
-  selectedVidoCallers = [];
-  selectedVidoSeers = {};
-  goScreen("s5");
-  renderVidoCallersAndSeers();
+  goScreen("s4");
 });
 
 document.getElementById("nextHandBtn").addEventListener("click", ()=>{
