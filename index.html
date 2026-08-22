@@ -249,7 +249,7 @@
 <body>
 
 <header>
-  <h1>TAVLA</h1>
+  <h1>TAVLA <span style="font-size:14px;vertical-align:middle;opacity:0.7;">v2</span></h1>
   <small>ORTAKLI TAKİP</small>
 </header>
 
@@ -1948,6 +1948,10 @@ function renderSideBox(side, t){
 document.getElementById("vidoCalledBtn").addEventListener("click", ()=>{
   const t = STATE.tables[currentTableId];
   if (!t || !t.game) return;
+  // Yeni vido turu: önceki turdan kalan blockedCaller'ları sıfırla
+  Object.values(t.game.pairs||{}).forEach(oppMap=>{
+    Object.values(oppMap||{}).forEach(p=>{ if(!p.closed) p.blockedCaller = null; });
+  });
   // Vido öncesi game'i stack'e ekle (geri al için)
   vidoStack.push(JSON.parse(JSON.stringify(t.game)));
   document.getElementById("undoVidoBtn").style.display = "none";
