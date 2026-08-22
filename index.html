@@ -2323,6 +2323,11 @@ document.getElementById("undoFinishedHandBtn").addEventListener("click", ()=>{
   const uvBtnR = document.getElementById("undoVidoBtn");
   if (uvBtnR) uvBtnR.style.display = vidoStack.length ? "inline-block" : "none";
   document.getElementById("undoFinishedHandBtn").style.display = "none";
+  // Vido ekranına dön
+  selectedVidoCallers = [];
+  selectedVidoSeers = {};
+  goScreen("s5");
+  renderVidoCallersAndSeers();
 });
 
 document.getElementById("undoAutoFinishBtn").addEventListener("click", ()=>{
@@ -2350,6 +2355,11 @@ document.getElementById("undoAutoFinishBtn").addEventListener("click", ()=>{
   const uvBtnA = document.getElementById("undoVidoBtn");
   if (uvBtnA) uvBtnA.style.display = vidoStack.length ? "inline-block" : "none";
   document.getElementById("undoAutoFinishBtn").style.display = "none";
+  // Vido ekranına dön
+  selectedVidoCallers = [];
+  selectedVidoSeers = {};
+  goScreen("s5");
+  renderVidoCallersAndSeers();
 });
 
 document.getElementById("nextHandBtn").addEventListener("click", ()=>{
