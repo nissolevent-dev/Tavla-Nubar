@@ -2402,6 +2402,9 @@ document.getElementById("undoHandBtn").addEventListener("click", ()=>{
     autoVidoNextHand: !!snap.autoVidoNextHand,
     previousSnapshot: null,
   });
+  try { vidoStack = snap.vidoStack ? JSON.parse(snap.vidoStack) : []; } catch(e){ vidoStack = []; }
+  const uvBtnH = document.getElementById("undoVidoBtn");
+  if (uvBtnH) uvBtnH.style.display = vidoStack.length ? "inline-block" : "none";
 });
 
 /* ===================== SCREEN 6: TOTALS ===================== */
