@@ -2256,14 +2256,13 @@ function finishHand(tableId, winnerSide, g, isMars){
     let rotationWinnerSide = winnerSide;
     const seatedWinner = winnerSide === "A" ? t.seated.A : t.seated.B;
     const seatedLoser  = winnerSide === "A" ? t.seated.B : t.seated.A;
-    const vidoLog = g.vidoLog || [];
-    // Kazanan oturan herhangi bir vidoyu görmemişse masadan kalkar.
-    // vidoLog yerine pairs'e bak — daha güvenilir.
-    // pairs[caller][opponent].closedLoser === seatedWinner ise görmemiş demektir.
-    const winnerMissedVido = Object.values(g.pairs||{}).some(oppMap=>
-      Object.values(oppMap||{}).some(p=> p.closed && p.closedLoser === seatedWinner)
-    );
-    if (winnerMissedVido){
+    // Kural: Kazanan oturan, karşı tarafın OTURANININ vidasını görmemişse masadan kalkar.
+    // Ortakların vidasını görmemesi masadan kalkmayı gerektirmez.
+    // pairs[seatedA][seatedB] hücresi: seatedA'nın seatedB'ye karşı çiftini gösterir.
+    // closedLoser === seatedWinner ise kazanan oturan bu çifti görmemiş demektir.
+    const pairCell = (g.pairs[t.seated.A]||{})[t.seated.B];
+    const winnerMissedLoserSeated = pairCell && pairCell.closed && pairCell.closedLoser === seatedWinner;
+    if (winnerMissedLoserSeated){
       rotationWinnerSide = winnerSide === "A" ? "B" : "A";
     }
     const next = t.format === "2v2"
