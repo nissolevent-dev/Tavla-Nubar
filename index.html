@@ -2853,18 +2853,6 @@ goScreen("s2");
 
 ROOT.on("value", snap => {
 
-/* ===================== LOCAL STATE ===================== */
-let STATE = {
-  players: {},
-  settings: { unitAmount: 0 },
-  startingBalances: {},
-  startingBalancesLocked: false,
-  sessions: {},
-  activeSessionId: null,
-  tables: {}
-};
-let vidoStack = []; // her vido öncesi game snapshot'ı // Vido geri al için snapshot
-
 /* ===================== FIREBASE SYNC ===================== */
   const val = snap.val() || {};
   STATE.players = val.players || {};
