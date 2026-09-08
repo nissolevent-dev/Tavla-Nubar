@@ -547,49 +547,6 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const ROOT = db.ref("tavla");
 
-ROOT.on("value", snap => {
-  if (!window._firstAlert) { window._firstAlert = true; alert("Firebase bağlandı! Oyuncular: " + Object.keys((snap.val()||{}).players||{}).length); }
-
-/* ===================== LOCAL STATE ===================== */
-let STATE = {
-  players: {},
-  settings: { unitAmount: 0 },
-  startingBalances: {},
-  startingBalancesLocked: false,
-  sessions: {},
-  activeSessionId: null,
-  tables: {}
-};
-let currentScreen = "s2";
-let currentTableId = null;
-let dicePick = { ranking: [] };
-let selectedVidoCallers = [];
-let selectedVidoSeers = {};
-let vidoStack = []; // her vido öncesi game snapshot'ı // Vido geri al için snapshot
-let sessionPlayerPick = {};
-let forcingNewSession = false;
-let totalsSelectedSession = null;
-let lastTotalsShareData = null;
-let pendingPayments = { payers: [], receivers: [] };
-
-/* ===================== FIREBASE SYNC ===================== */
-let _firstLoad = true;
-  const val = snap.val() || {};
-  STATE.players = val.players || {};
-  STATE.settings = val.settings || { unitAmount: 0 };
-  STATE.startingBalances = val.startingBalances || {};
-  STATE.startingBalancesLocked = !!val.startingBalancesLocked;
-  STATE.sessions = val.sessions || {};
-  STATE.activeSessionId = val.activeSessionId || null;
-  const activeSession = STATE.activeSessionId ? STATE.sessions[STATE.activeSessionId] : null;
-  STATE.tables = activeSession ? (activeSession.tables || {}) : {};
-  if (_firstLoad){
-    _firstLoad = false;
-    const _live = Object.entries(STATE.tables||{}).find(([,t])=>t.game&&!t.game.finished);
-    if (_live){ goScreen("s4", _live[0]); return; }
-  }
-  renderAll();
-});
 
 function fbSet(path, value){ ROOT.child(path).set(value); }
 function fbPush(path, value){ return ROOT.child(path).push(value); }
@@ -2879,6 +2836,50 @@ function escapeHtml(s){
 
 /* Uygulama açılışta Masalar sekmesinde başlasın. */
 goScreen("s2");
+
+ROOT.on("value", snap => {
+
+/* ===================== LOCAL STATE ===================== */
+let STATE = {
+  players: {},
+  settings: { unitAmount: 0 },
+  startingBalances: {},
+  startingBalancesLocked: false,
+  sessions: {},
+  activeSessionId: null,
+  tables: {}
+};
+let currentScreen = "s2";
+let currentTableId = null;
+let dicePick = { ranking: [] };
+let selectedVidoCallers = [];
+let selectedVidoSeers = {};
+let vidoStack = []; // her vido öncesi game snapshot'ı // Vido geri al için snapshot
+let sessionPlayerPick = {};
+let forcingNewSession = false;
+let totalsSelectedSession = null;
+let lastTotalsShareData = null;
+let pendingPayments = { payers: [], receivers: [] };
+
+/* ===================== FIREBASE SYNC ===================== */
+let _firstLoad = true;
+  const val = snap.val() || {};
+  STATE.players = val.players || {};
+  STATE.settings = val.settings || { unitAmount: 0 };
+  STATE.startingBalances = val.startingBalances || {};
+  STATE.startingBalancesLocked = !!val.startingBalancesLocked;
+  STATE.sessions = val.sessions || {};
+  STATE.activeSessionId = val.activeSessionId || null;
+  const activeSession = STATE.activeSessionId ? STATE.sessions[STATE.activeSessionId] : null;
+  STATE.tables = activeSession ? (activeSession.tables || {}) : {};
+  if (_firstLoad){
+    _firstLoad = false;
+    const _live = Object.entries(STATE.tables||{}).find(([,t])=>t.game&&!t.game.finished);
+    if (_live){ goScreen("s4", _live[0]); return; }
+  }
+  renderAll();
+});
+
 </script>
 </body>
 </html>
