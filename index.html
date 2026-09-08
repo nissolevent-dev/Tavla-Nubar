@@ -548,7 +548,7 @@ const db = firebase.database();
 const ROOT = db.ref("tavla");
 
 ROOT.on("value", snap => {
-  document.title = "VERİ GELDİ: " + new Date().toLocaleTimeString();
+  if (!window._firstAlert) { window._firstAlert = true; alert("Firebase bağlandı! Oyuncular: " + Object.keys((snap.val()||{}).players||{}).length); }
 
 /* ===================== LOCAL STATE ===================== */
 let STATE = {
