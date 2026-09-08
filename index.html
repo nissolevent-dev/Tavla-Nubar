@@ -548,6 +548,20 @@ const db = firebase.database();
 const ROOT = db.ref("tavla");
 
 
+/* ===================== GLOBAL STATE ===================== */
+let STATE = { players:{}, settings:{unitAmount:0}, startingBalances:{}, startingBalancesLocked:false, sessions:{}, activeSessionId:null, tables:{} };
+let currentScreen = "s2";
+let currentTableId = null;
+let forcingNewSession = false;
+let sessionPlayerPick = {};
+let dicePick = { ranking: [] };
+let totalsSelectedSession = null;
+let pendingPayments = { payers: [], receivers: [] };
+let selectedVidoCallers = [];
+let selectedVidoSeers = {};
+let lastTotalsShareData = null;
+let _firstLoad = true;
+
 function fbSet(path, value){ ROOT.child(path).set(value); }
 function fbPush(path, value){ return ROOT.child(path).push(value); }
 function fbUpdate(path, value){ ROOT.child(path).update(value); }
@@ -2849,20 +2863,9 @@ let STATE = {
   activeSessionId: null,
   tables: {}
 };
-let currentScreen = "s2";
-let currentTableId = null;
-let dicePick = { ranking: [] };
-let selectedVidoCallers = [];
-let selectedVidoSeers = {};
 let vidoStack = []; // her vido öncesi game snapshot'ı // Vido geri al için snapshot
-let sessionPlayerPick = {};
-let forcingNewSession = false;
-let totalsSelectedSession = null;
-let lastTotalsShareData = null;
-let pendingPayments = { payers: [], receivers: [] };
 
 /* ===================== FIREBASE SYNC ===================== */
-let _firstLoad = true;
   const val = snap.val() || {};
   STATE.players = val.players || {};
   STATE.settings = val.settings || { unitAmount: 0 };
