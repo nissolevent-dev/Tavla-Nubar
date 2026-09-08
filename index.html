@@ -548,6 +548,7 @@ const db = firebase.database();
 const ROOT = db.ref("tavla");
 
 ROOT.on("value", snap => {
+  document.title = "VERİ GELDİ: " + new Date().toLocaleTimeString();
 
 /* ===================== LOCAL STATE ===================== */
 let STATE = {
