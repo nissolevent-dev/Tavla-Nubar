@@ -550,6 +550,10 @@ const ROOT = db.ref("tavla");
 
 /* ===================== GLOBAL STATE ===================== */
 let STATE = { players:{}, settings:{unitAmount:0}, startingBalances:{}, startingBalancesLocked:false, sessions:{}, activeSessionId:null, tables:{} };
+let vidoStack = [];
+let autoVidoDigit = 0;
+let autoVidoCallback = null;
+let gameBeforeVido = null;
 let currentScreen = "s2";
 let currentTableId = null;
 let forcingNewSession = false;
